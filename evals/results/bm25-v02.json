@@ -1,0 +1,588 @@
+{
+  "dataset_version": "2026-11-06-v1",
+  "dataset_sha256": "239b39e82fd666c1f684b43afb5d819092cf559937fe71faefc8d8f6e1e93239",
+  "provenance": "人工编写的合成个人知识语料与20条查询，用于可复现检索回归；不是外部模型效果或真实用户基准。",
+  "created_at": "2026-11-06T08:51:52.864801+00:00",
+  "code_revision": "cd29e91eee577873dcd684f9410e988b75ea961f",
+  "working_tree_dirty": true,
+  "implementation_sha256": "b09cb43d355f1a331d0abb0a201edf5ad0181cc8a45d10cea58a2780e939e1b6",
+  "python": "3.12.10",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "k": 6,
+  "case_count": 20,
+  "concurrency": 1,
+  "embedding_model": null,
+  "embedding_config_fingerprint": null,
+  "modes": {
+    "bm25": {
+      "status": "completed",
+      "case_count": 20,
+      "answerable_count": 15,
+      "unanswerable_count": 5,
+      "hit_at_k": 0.9333333333333333,
+      "mrr_at_k": 0.9333333333333333,
+      "section_recall_at_k": 0.9333333333333333,
+      "scope_leak_count": 0,
+      "unanswerable_abstention_rate": 1.0,
+      "error_count": 0,
+      "latency_p50_ms": 16.58,
+      "latency_p95_ms": 24.667,
+      "cases": [
+        {
+          "id": "q01",
+          "http_status": 200,
+          "status": "matched",
+          "expected_document_ids": [
+            "review"
+          ],
+          "retrieved_document_ids": [
+            "review",
+            "review-tech"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "section_matches": 1,
+          "section_count": 1,
+          "scope_leaks": 0,
+          "abstained": false,
+          "elapsed_ms": 21.26,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 10,
+            "bm25_candidates": 2,
+            "elapsed_ms": 2.07
+          }
+        },
+        {
+          "id": "q02",
+          "http_status": 200,
+          "status": "matched",
+          "expected_document_ids": [
+            "review"
+          ],
+          "retrieved_document_ids": [
+            "review",
+            "backup",
+            "study"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "section_matches": 1,
+          "section_count": 1,
+          "scope_leaks": 0,
+          "abstained": false,
+          "elapsed_ms": 24.667,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 10,
+            "bm25_candidates": 3,
+            "elapsed_ms": 1.303
+          }
+        },
+        {
+          "id": "q03",
+          "http_status": 200,
+          "status": "matched",
+          "expected_document_ids": [
+            "study"
+          ],
+          "retrieved_document_ids": [
+            "study"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "section_matches": 1,
+          "section_count": 1,
+          "scope_leaks": 0,
+          "abstained": false,
+          "elapsed_ms": 18.223,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 10,
+            "bm25_candidates": 1,
+            "elapsed_ms": 1.515
+          }
+        },
+        {
+          "id": "q04",
+          "http_status": 200,
+          "status": "matched",
+          "expected_document_ids": [
+            "study"
+          ],
+          "retrieved_document_ids": [
+            "study",
+            "review"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "section_matches": 1,
+          "section_count": 1,
+          "scope_leaks": 0,
+          "abstained": false,
+          "elapsed_ms": 20.759,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 10,
+            "bm25_candidates": 2,
+            "elapsed_ms": 0.907
+          }
+        },
+        {
+          "id": "q05",
+          "http_status": 200,
+          "status": "matched",
+          "expected_document_ids": [
+            "cards"
+          ],
+          "retrieved_document_ids": [
+            "cards",
+            "rag",
+            "study"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "section_matches": 1,
+          "section_count": 1,
+          "scope_leaks": 0,
+          "abstained": false,
+          "elapsed_ms": 18.446,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 10,
+            "bm25_candidates": 3,
+            "elapsed_ms": 0.947
+          }
+        },
+        {
+          "id": "q06",
+          "http_status": 200,
+          "status": "matched",
+          "expected_document_ids": [
+            "cards"
+          ],
+          "retrieved_document_ids": [
+            "cards"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "section_matches": 1,
+          "section_count": 1,
+          "scope_leaks": 0,
+          "abstained": false,
+          "elapsed_ms": 17.471,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 10,
+            "bm25_candidates": 1,
+            "elapsed_ms": 1.328
+          }
+        },
+        {
+          "id": "q07",
+          "http_status": 200,
+          "status": "matched",
+          "expected_document_ids": [
+            "rag"
+          ],
+          "retrieved_document_ids": [
+            "rag",
+            "cards",
+            "study"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "section_matches": 1,
+          "section_count": 1,
+          "scope_leaks": 0,
+          "abstained": false,
+          "elapsed_ms": 26.655,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 10,
+            "bm25_candidates": 3,
+            "elapsed_ms": 1.821
+          }
+        },
+        {
+          "id": "q08",
+          "http_status": 200,
+          "status": "matched",
+          "expected_document_ids": [
+            "fusion"
+          ],
+          "retrieved_document_ids": [
+            "fusion"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "section_matches": 1,
+          "section_count": 1,
+          "scope_leaks": 0,
+          "abstained": false,
+          "elapsed_ms": 15.565,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 10,
+            "bm25_candidates": 1,
+            "elapsed_ms": 0.785
+          }
+        },
+        {
+          "id": "q09",
+          "http_status": 200,
+          "status": "matched",
+          "expected_document_ids": [
+            "backup"
+          ],
+          "retrieved_document_ids": [
+            "backup"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "section_matches": 1,
+          "section_count": 1,
+          "scope_leaks": 0,
+          "abstained": false,
+          "elapsed_ms": 18.072,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 10,
+            "bm25_candidates": 1,
+            "elapsed_ms": 0.837
+          }
+        },
+        {
+          "id": "q10",
+          "http_status": 200,
+          "status": "matched",
+          "expected_document_ids": [
+            "backup"
+          ],
+          "retrieved_document_ids": [
+            "backup"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "section_matches": 1,
+          "section_count": 1,
+          "scope_leaks": 0,
+          "abstained": false,
+          "elapsed_ms": 16.509,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 10,
+            "bm25_candidates": 1,
+            "elapsed_ms": 0.791
+          }
+        },
+        {
+          "id": "q11",
+          "http_status": 200,
+          "status": "matched",
+          "expected_document_ids": [
+            "sleep"
+          ],
+          "retrieved_document_ids": [
+            "sleep",
+            "review",
+            "study"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "section_matches": 1,
+          "section_count": 1,
+          "scope_leaks": 0,
+          "abstained": false,
+          "elapsed_ms": 15.459,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 10,
+            "bm25_candidates": 3,
+            "elapsed_ms": 1.264
+          }
+        },
+        {
+          "id": "q12",
+          "http_status": 200,
+          "status": "matched",
+          "expected_document_ids": [
+            "project"
+          ],
+          "retrieved_document_ids": [
+            "project",
+            "handoff"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "section_matches": 1,
+          "section_count": 1,
+          "scope_leaks": 0,
+          "abstained": false,
+          "elapsed_ms": 17.923,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 10,
+            "bm25_candidates": 2,
+            "elapsed_ms": 1.896
+          }
+        },
+        {
+          "id": "q13",
+          "http_status": 200,
+          "status": "matched",
+          "expected_document_ids": [
+            "handoff"
+          ],
+          "retrieved_document_ids": [
+            "handoff",
+            "project"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "section_matches": 1,
+          "section_count": 1,
+          "scope_leaks": 0,
+          "abstained": false,
+          "elapsed_ms": 15.225,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 10,
+            "bm25_candidates": 2,
+            "elapsed_ms": 0.869
+          }
+        },
+        {
+          "id": "q14",
+          "http_status": 200,
+          "status": "matched",
+          "expected_document_ids": [
+            "review-tech"
+          ],
+          "retrieved_document_ids": [
+            "review-tech"
+          ],
+          "hit": true,
+          "reciprocal_rank": 1.0,
+          "section_matches": 1,
+          "section_count": 1,
+          "scope_leaks": 0,
+          "abstained": false,
+          "elapsed_ms": 16.651,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 5,
+            "bm25_candidates": 1,
+            "elapsed_ms": 0.843
+          }
+        },
+        {
+          "id": "q15",
+          "http_status": 200,
+          "status": "not_found",
+          "expected_document_ids": [
+            "study"
+          ],
+          "retrieved_document_ids": [],
+          "hit": false,
+          "reciprocal_rank": 0,
+          "section_matches": 0,
+          "section_count": 1,
+          "scope_leaks": 0,
+          "abstained": true,
+          "elapsed_ms": 15.604,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 2,
+            "bm25_candidates": 0,
+            "elapsed_ms": 0.754
+          }
+        },
+        {
+          "id": "q16",
+          "http_status": 200,
+          "status": "not_found",
+          "expected_document_ids": [],
+          "retrieved_document_ids": [],
+          "hit": false,
+          "reciprocal_rank": 0,
+          "section_matches": 0,
+          "section_count": 0,
+          "scope_leaks": 0,
+          "abstained": true,
+          "elapsed_ms": 14.829,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 10,
+            "bm25_candidates": 0,
+            "elapsed_ms": 0.686
+          }
+        },
+        {
+          "id": "q17",
+          "http_status": 200,
+          "status": "not_found",
+          "expected_document_ids": [],
+          "retrieved_document_ids": [],
+          "hit": false,
+          "reciprocal_rank": 0,
+          "section_matches": 0,
+          "section_count": 0,
+          "scope_leaks": 0,
+          "abstained": true,
+          "elapsed_ms": 10.95,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 3,
+            "bm25_candidates": 0,
+            "elapsed_ms": 0.798
+          }
+        },
+        {
+          "id": "q18",
+          "http_status": 200,
+          "status": "not_found",
+          "expected_document_ids": [],
+          "retrieved_document_ids": [],
+          "hit": false,
+          "reciprocal_rank": 0,
+          "section_matches": 0,
+          "section_count": 0,
+          "scope_leaks": 0,
+          "abstained": true,
+          "elapsed_ms": 13.699,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 2,
+            "bm25_candidates": 0,
+            "elapsed_ms": 0.87
+          }
+        },
+        {
+          "id": "q19",
+          "http_status": 200,
+          "status": "not_found",
+          "expected_document_ids": [],
+          "retrieved_document_ids": [],
+          "hit": false,
+          "reciprocal_rank": 0,
+          "section_matches": 0,
+          "section_count": 0,
+          "scope_leaks": 0,
+          "abstained": true,
+          "elapsed_ms": 12.093,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 0,
+            "bm25_candidates": 0,
+            "elapsed_ms": 0.019
+          }
+        },
+        {
+          "id": "q20",
+          "http_status": 200,
+          "status": "not_found",
+          "expected_document_ids": [],
+          "retrieved_document_ids": [],
+          "hit": false,
+          "reciprocal_rank": 0,
+          "section_matches": 0,
+          "section_count": 0,
+          "scope_leaks": 0,
+          "abstained": true,
+          "elapsed_ms": 13.213,
+          "retrieval": {
+            "requested": "bm25",
+            "path": "bm25",
+            "cache_hits": 0,
+            "embedded_chunks": 0,
+            "embedding_calls": 0,
+            "scope_documents": 0,
+            "bm25_candidates": 0,
+            "elapsed_ms": 0.021
+          }
+        }
+      ]
+    },
+    "hybrid": {
+      "status": "skipped",
+      "reason": "No real embedding endpoint configured; no dense metrics fabricated."
+    }
+  }
+}

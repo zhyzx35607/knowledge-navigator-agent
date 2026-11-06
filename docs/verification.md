@@ -1,22 +1,16 @@
-# 本地验证记录
+# v0.2 本地验证记录
 
-日期：2026-11-06。环境：Windows，Python 3.12.10，SQLite 3.49.1。
+日期：2026-11-06，Windows / Python 3.12。以下来自实际运行。
 
-- `.venv\Scripts\python.exe -m pytest -q`：44 项通过。覆盖检索命中/未命中、范围限制、来源原文与哈希、白名单拒绝、文档更新删除、版本冲突、多轮搜索改写、真实 read、伪造/未读/过期片段、工具范围逃逸、最大步数、模型超时/HTTP/格式异常、静态页面和工作台 API。
-- `python -m compileall -q navigator`：通过。
-- `node --check navigator/static/app.js`：通过；PowerShell 启动脚本解析通过。
-- `scripts/setup.ps1`：完整安装流程通过；`scripts/start.ps1 -Port 8793` 启动成功，健康检查为 `ok`，测试服务随后停止。
-- FastAPI 已在 `127.0.0.1:8792` 成功启动并完成真实 HTTP 访问。
-- Edge 界面验证：每周复盘真实检索；只选择复盘文档查询 RAG 返回未找到；选择未配置的模型模式显示明确错误。
-- 页面截图保存在 `docs/screenshots/local-search.jpg`。截图中有真实命中的文档标题、版本、原文与来源标识。
-- 复制的第三方 LICENSE 与来源仓库 LICENSE 的 SHA256 相同。
+- `.venv\Scripts\python.exe -m pytest -q`：71 passed，1条已有Starlette/httpx弃用警告；10.72秒。
+- `node --check navigator/static/app.js`：通过。
+- `node --test tests/ui_races.cjs`：4 passed。覆盖历史乱序响应、搜索与历史竞争、过期记录文本渲染、文件拖放进入导入审阅。
+- `python -m navigator.evaluate --output evals/results/bm25-v02.json`：20题，BM25 Hit@6/MRR@6/SectionRecall@6均0.9333；范围泄漏0；5条无答案拒答全部通过；API错误0。语义改写q15保留未命中。真实embedding未配置，hybrid skipped。
+- 评测p50/p95、语料哈希、代码revision和逐例结果见JSON。工作区改动尚未提交时revision仅表示基准提交；不能将其当成新代码已发布的证据。
+- Edge真实操作：创建集合；通过文件选择器一次选择并导入examples两文件；按集合搜索“研究闭环”；自动保存研究；显式续问“有哪些步骤”，显示上一轮公开上下文和范围；编辑原文后显示3条引用已过期；下载Markdown且文件中包含“存在过期引用，请重新检索”。
+- 浏览器截图：`docs/screenshots/v02-research.jpg`。全页截图接口超时，保存的是实际可见页面截图。
+- 预览端口8794，数据库 `data/preview-v02.sqlite3`，含本次合成演示资料；默认启动端口仍8792、默认库仍data/knowledge.sqlite3。
 
-模型测试采用 `httpx.MockTransport` 确定性驱动 search/read/final，工具确实读取临时 SQLite 数据库；没有配置或调用真实外部模型，因此不声明模型联网成功。44 项包含并发版本冲突与非法模型地址回归测试。
+后端新增回归包含旧库幂等迁移、导入编码/数量/字节/请求上限、事务写入故障回滚、集合生命周期与范围交集、旧客户端保存保留集合、历史跨重启/删除/导出、续问上下文范围隔离与过期拒绝、真实embedding HTTP契约的MockTransport测试、版本/模型缓存隔离、候选版本竞态与数值稳定。
 
-测试有一条来自当前 Starlette/TestClient 的 httpx 弃用警告，不影响 44 项结果；后续迁移测试客户端可单独处理。
-
-浏览器已完成“搜索每周复盘 → 查看真实引用 → 点击入口 → 页面内确认 → 到达 /workspace/journal 并展示关联文档”的实际验收。Agent 工具轨迹由协议和 API 测试覆盖，尚未用真实模型做浏览器端到端验收。
-
-交叉审查修复了并发编辑的乐观锁竞态：版本读取之前执行 BEGIN IMMEDIATE，同一旧版本的两个真实并发 PUT 分别返回 200 和 409，获胜正文、版本、哈希与 FTS 索引保持一致。非法模型地址返回固定脱敏配置错误，不回显配置值或发起网络请求。
-
-GitHub Actions 配置 Windows/Linux × Python 3.11/3.12，实际远程状态以仓库 Actions 为准。
+模型和向量接口测试用明确的MockTransport；没有联网进行真实模型/向量效果评测。生产默认BM25，混合模式无配置时明确报告BM25。远程CI状态以Actions为准。

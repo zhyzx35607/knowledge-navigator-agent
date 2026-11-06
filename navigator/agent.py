@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
 from .model import ModelFailure
 from .protocol import InvalidResult, Proposal, validate_result
+from .retrieval import RetrievalFailure
 
 
 class Action(BaseModel):
@@ -54,12 +55,16 @@ class AgentFailure(Exception):
                        "model_calls": model_calls}
 
 
-async def run_agent(query, scope, allowed_entries, store, model, trace):
+async def run_agent(query, scope, allowed_entries, store, model, trace, retriever=None,
+                    retrieval_method="bm25", continuation_context=None):
     # Scope and entry metadata are snapshots of the validated original request.
     scope = tuple(scope)
     messages = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": json.dumps({
         "query": query, "scope_document_ids": scope, "allowed_entries": allowed_entries,
         "max_steps": model.config.max_steps}, ensure_ascii=False)}]
+    if continuation_context:
+        messages.append({"role": "user", "content": json.dumps({"previous_research": continuation_context,
+            "instruction": "这些是用户明确选择的历史公开内容，仅作问题上下文。必须重新 search/read 获得本次引用。"}, ensure_ascii=False)})
     discovered, read = {}, {}
     model_calls = 0
 
@@ -88,7 +93,15 @@ async def run_agent(query, scope, allowed_entries, store, model, trace):
             event["input"] = {"query": action.query}
             if not action.query.strip():
                 fail("invalid_query", "模型搜索词为空，已拒绝")
-            hits = store.retrieve(action.query, list(scope))
+            tool_started = perf_counter()
+            try:
+                if retriever:
+                    hits, retrieval = await retriever.search(action.query, list(scope), retrieval_method)
+                else:
+                    hits, retrieval = store.retrieve(action.query, list(scope)), {"path": "bm25"}
+            except RetrievalFailure as exc:
+                fail("retrieval_failure", str(exc))
+            event.update(tool_ms=round((perf_counter() - tool_started) * 1000, 3), retrieval=retrieval)
             discovered.update({item["citation_id"]: item for item in hits})
             result = [{"citation_id": item["citation_id"], "document_id": item["document_id"],
                        "title": item["title"], "preview": item["quote"][:120]} for item in hits]
@@ -99,7 +112,9 @@ async def run_agent(query, scope, allowed_entries, store, model, trace):
             event["input"] = {"chunk_ids": chunk_ids}
             if any(chunk_id not in discovered for chunk_id in chunk_ids):
                 fail("unknown_chunk", "读取片段不属于本次搜索发现的证据，已拒绝")
+            tool_started = perf_counter()
             result = store.read_chunks(chunk_ids, list(scope))
+            event["tool_ms"] = round((perf_counter() - tool_started) * 1000, 3)
             if len(result) != len(chunk_ids):
                 fail("stale_chunk", "读取片段已更新、删除或不在原始文档范围内，请重新检索")
             read.update({item["citation_id"]: item for item in result})

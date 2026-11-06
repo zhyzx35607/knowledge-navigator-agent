@@ -1,64 +1,42 @@
-# 架构与协议
+# v0.2 架构与数据约束
 
 ```mermaid
 flowchart TD
-  UI[浏览器: 问题与文档范围] --> Scope[FastAPI: 固定请求范围与入口白名单]
-  Scope --> Local[默认: 一次 FTS5 / BM25 检索]
-  Scope --> Agent[可选: 有界模型循环]
-  Agent --> Decision{严格 JSON 动作}
-  Decision --> Search[search: 固定范围搜索]
-  Search --> Agent
-  Decision --> Read[read: 读取本次已发现片段]
-  Read --> Agent
-  Decision --> Final[final: 引用必须已读]
-  Local --> Gate[来源 / 版本 / 原文 / 入口校验]
-  Final --> Gate
-  Gate --> Result[原文 + 版本 + SHA256 + 入口 + 工具轨迹]
-  Result --> UI
-  Agent --> Limit[超限或协议错误: 明确失败]
+  Import[TXT / Markdown 文件或拖放] --> Decode[大小 / 文件名 / UTF-8 整批校验]
+  Decode --> DB[SQLite 文档 / 集合 / FTS / 版本]
+  UI[问题 / 集合 / 文档 / 入口范围] --> Scope[范围交集]
+  Parent[显式父研究记录] --> Fresh[复核引用 + 有界公开上下文]
+  Fresh --> Scope
+  Scope --> Retrieve[BM25 或 BM25 + 真实 embedding RRF]
+  DB --> Retrieve
+  Retrieve --> Local[本地展示原文]
+  Retrieve --> Agent[Agent search / read / final]
+  Agent --> Gate[本轮已读 + 当前版本 / 哈希 / 原文 / 入口校验]
+  Local --> Gate
+  Gate --> Record[服务器保存研究快照与公开轨迹]
+  Record --> Recheck[重新打开 / 导出时核对过期引用]
 ```
 
-## 检索与索引
+## 数据与迁移
 
-`Store` 用 SQLite 保存文档、入口、原文片段和 FTS5 索引；文档写入、旧索引删除和新索引写入处于同一事务。中文连续文本生成重叠双字词，英文生成小写单词。查询用参数化 MATCH 表达式与文档 ID SQL 过滤，按 BM25 排序，每次最多返回 6 个片段。这是关键词检索，不是 embedding/向量数据库；错别字、同义词、单字查询和语义推断能力有限。中文单字查询仅在单字词条中匹配。
+`initialize` 幂等创建 collections、research_records、embedding_vectors，检测旧 documents 列后增加 collection_id。已有文档/FTS/版本不重写；metadata.seeded 保留用户删空状态。删除集合使用外键 SET NULL，删除文档使用片段级 CASCADE 同步清理向量缓存。研究快照不使用文档外键，因此删除原文仍保留历史证据。
 
-每个片段最多 500 字符。文档更新使版本递增，并更新正文 SHA256。来源 ID 为 `document_id:v<version>:<chunk_number>`。删除文档同步删除索引。第一次建库才加入演示数据；用户删空后不会再次播种。
+文档保存先 BEGIN IMMEDIATE，再校验 expected_version 和入口，事务内更新文档/分块/FTS。批量导入先验证所有文件，再一个事务写入全部。正文仍按段落分成最多 500 字符的片段，来源 ID 包含文档版本；没有引入新的 chunking 算法或 PDF 解析。
 
-## 请求范围
+## 检索与范围
 
-`POST /api/search` 接收 `query`、`document_ids`、`entry_ids`、`mode`。范围为 `null` 表示请求开始时本地库的所有资源，`[]` 表示空范围。不存在的 ID 返回 403，不扩大范围。这里是单人本地应用的检索范围，不是多租户身份认证系统。
+请求 document_ids 与 collection_ids 取交集；null 表示全部，空列表表示空范围。续问再与父记录的实际文档/入口范围取交集。BM25 SQL 和 dense 候选 SQL 都先应用范围，范围外文本不进入 embedding 请求。BM25 两路候选版本不一致时明确失败，最终引用还会重新核对当前版本。
 
-范围与入口白名单在请求开始时固定。每次 `search` 和 `read` 都把原始范围传入 SQL 过滤；模型不能提供新的 `document_ids`。这种字段会因 `extra=forbid` 被拒绝。只依靠提示词约束模型不够，数据访问与最终引用都由后端检查。
+可选向量服务实际调用 /embeddings，返回有限、非零且维度一致的向量。稳定余弦计算先按最大绝对值缩放，避免有限极值溢出。向量候选应用可配置阈值；两路各30候选通过 k=60 的 RRF 融合，最终6片段。模型配置指纹、片段版本、正文digest共同确定缓存。不存在随机或哈希向量生产后备。
 
-## 有限步 Agent
+## 续问和研究记录
 
-`navigator/agent.py` 调用 `ModelClient.next_action(messages)`，每轮接受一个严格 JSON 动作。聊天历史只追加经校验的动作和实际工具输出，没有内部思维字段，也不保存会话到数据库。
+研究记录仅由服务器搜索流创建，保存真实结果或安全失败与查询、实际范围、引用、检索信息、公开动作摘要。重新打开和导出在同一 SQLite 读快照中核对引用，逐项产生 stale/stale_reason；历史回答不改变。无引用记录为 evidence_status=none。
 
-| 动作 | 输入 | 真实执行及限制 |
-|---|---|---|
-| `search` | `query`，1–400 字符 | 固定范围内 FTS5/BM25 检索，返回 ID、标题和最多 120 字符预览；可多轮改写关键词 |
-| `read` | `chunk_ids`，1–6 个 | 只接受本次搜索发现的 ID，再读取数据库当前完整片段；更新/删除后旧 ID 失效 |
-| `final` | `answer`、`citation_ids`、`entry_ids` | 引用必须已经通过 read，随后执行版本、哈希、原文、范围和入口校验 |
+显式续问最多读取一层父记录；已过期父引用返回409。公开上下文最多问题400字符、回答1200字符、3段各180字符引用。缩小范围不注入旧回答，并过滤范围外引用。Agent 必须重新调用 search/read，不能直接使用父引用提交 final。本地续问明确采用关键词拼接，不把历史 CRUD 叫自动长期记忆。
 
-默认最多 6 次模型动作，可配置 3–12 次，`final` 也占一步。每次模型请求有独立超时，最多 120 秒；不自动重试或回退为本地成功。初始问题不必直接命中：模型可先搜索、查看空结果、改写查询、读取证据再回答。该流程使用文本 JSON 协议，不要求服务支持原生工具调用格式。
+## 轨迹与评测
 
-轨迹记录动作类型、轮次、搜索词/片段 ID、命中/读取数量、模型调用耗时和校验结果。失败响应包含已完成轨迹与拒绝原因；不含上游原始错误、密钥或模型内部思维。
+trace 记录真实动作、参数摘要、片段ID、模型耗时、工具耗时、召回路径及缓存计数，不记录隐藏思维或密钥。研究记录ID串联一次执行结果与导出。
 
-## 最终结果校验
-
-非空引用必须来自本次已读原文且仍在请求范围内；版本、正文哈希、原文片段必须匹配当前文档。入口必须同时存在于服务器白名单、本次选中白名单、被引用文档的关联入口中。入口路径由服务器返回，模型不能提供 URL。
-
-空 `citation_ids` 且空 `entry_ids` 表示弃答：服务器返回 `status=not_found` 和固定的证据不足文案，丢弃模型自行生成的 answer。无引用却推荐入口则拒绝。`not_found` 表示没有提交可用证据，不代表模型穷尽了整个知识库。
-
-检查结构与来源真实性不能证明答案每句话都符合原文。UI 展示原文供用户核对。需要事实级自动评估时，应另建人工标注问答集。
-
-## 失败语义
-
-- 本地未命中：200 / `status=not_found`，空引用与入口，`model_called=false`。
-- 模型明确弃答：200 / `status=not_found`，固定文案、空引用与入口、真实调用次数。
-- 未配置、模型 HTTP 错误、超时、无效 JSON、非法动作或越权：502，`detail` 内含 `status=failed`、错误码、消息和轨迹。
-- 已达到最大动作步数却没有有效 final：502 / `code=max_steps`；不会把最后一次搜索伪装成答案。
-- 文档版本冲突：409。检索后文档变更会在 read 或最终校验时拒绝旧证据。
-- 请求非法：422。文档/入口不存在：403 或 404。
-
-网络模型只在选择 Agent 模式时调用；发送问题、所选文档 ID、允许入口元数据及工具结果。不发送数据库文件、不记录模型密钥或完整上游错误。默认仅监听 `127.0.0.1`；应用没有多用户鉴权，当前范围是本地个人使用。
+20题golden由生产API在临时库运行，分别统计BM25与真实hybrid。无真实向量配置时hybrid skipped。结果包括每题排名/原文覆盖/范围泄漏/拒答、数据集哈希、代码revision、环境和延迟。MockTransport只用于接口和约束回归，不能作为真实语义效果证据。

@@ -5,29 +5,36 @@
   <aside class="sidebar">
     <a class="brand" href="/"><span class="brand-mark">知</span><span>知径<small>KNOWLEDGE NAVIGATOR</small></span></a>
     <div class="sidebar-title"><h2>我的知识库</h2><button id="add-doc" class="icon-button" title="新增文档" aria-label="新增文档">＋</button></div>
+    <div class="collection-picker"><select id="collection-filter" aria-label="检索集合"><option value="all">全部资料</option></select><button id="manage-collections" class="edit-doc">管理</button></div>
+    <div id="drop-zone" class="drop-zone"><button id="import-files" class="entry-button">导入 TXT / MD</button><span>或将文件拖到这里</span></div>
+    <input id="file-input" type="file" accept=".txt,.md" multiple hidden>
     <p class="muted compact">选择本次检索的文档</p>
     <div class="scope-actions"><button id="select-all">全选</button><span>·</span><button id="select-none">清空</button></div>
     <div id="documents" class="document-list" aria-label="文档范围"></div>
     <div class="sidebar-title entry-heading"><h2>可用入口</h2></div>
     <div id="entries" class="entry-list" aria-label="入口白名单"></div>
-    <footer>合成个人知识库<br><span id="document-count">正在连接…</span></footer>
+    <footer>本地个人知识库<br><span id="document-count">正在连接…</span></footer>
   </aside>
   <main>
     <header><div class="breadcrumb">个人空间 <span>/</span> 知识导航</div><span id="health" class="status">连接中</span></header>
-    <section class="intro"><div class="eyebrow">FROM QUESTION TO EVIDENCE</div><h1>从一个问题，<br>找到下一步。</h1><p>在自己的笔记里寻找答案，<br class="mobile-only">沿着可核对的来源打开工作入口。</p></section>
+    <section class="intro"><div class="eyebrow">YOUR PERSONAL RESEARCH DESK</div><h1>资料有序，研究有据。</h1><p>导入资料，选定集合开始检索。每次研究自动保存，随时回来核对来源。</p></section>
     <section class="search-card" aria-labelledby="search-title">
       <form id="search-form"><label id="search-title" for="query">你想找什么？</label><textarea id="query" rows="2" maxlength="400" required placeholder="例如：怎样安排每周复盘？"></textarea>
-        <div class="search-bottom"><label class="mode-label" for="mode"><span class="mode-dot"></span><select id="mode"><option value="local">本地检索 · 无需 API Key</option><option value="model">Agent 检索 · 使用已配置服务</option></select></label><button id="search-button" type="submit" class="primary">检索知识 <span>↗</span></button></div>
+        <p id="continuation-banner" class="freshness" hidden><span id="continuation-label"></span> <button id="end-continuation" type="button" class="edit-doc">结束续问</button></p>
+        <div class="search-bottom"><div class="search-settings"><label class="mode-label" for="mode"><span class="mode-dot"></span><select id="mode"><option value="local">本地检索 · 无需 API Key</option><option value="model">Agent 检索 · 使用已配置服务</option></select></label><label class="mode-label" for="retrieval-method"><select id="retrieval-method"><option value="bm25">关键词 BM25</option><option value="hybrid">混合检索 BM25 + 向量</option></select></label></div><button id="search-button" type="submit" class="primary">检索知识 <span>↗</span></button></div>
       </form>
     </section>
     <div class="suggestions"><span>试一试</span><button data-query="每周复盘">每周复盘</button><button data-query="知识卡片">知识卡片</button><button data-query="RAG 检索来源">RAG 检索来源</button></div>
     <p id="error" class="error" role="alert" hidden></p>
-    <section id="result" aria-live="polite" hidden><div class="result-heading"><h2>检索结果</h2><span id="result-mode" class="tag"></span></div><p id="answer"></p><div id="citations" class="citations"></div><div id="recommendations"></div><details class="trace"><summary>查看处理过程</summary><ol id="trace"></ol></details></section>
+    <section id="result" aria-live="polite" hidden><div class="result-heading"><h2 id="result-title">检索结果</h2><span id="result-mode" class="tag"></span></div><p id="record-meta" class="muted compact"></p><p id="freshness" class="freshness" hidden></p><div id="record-actions" class="record-actions" hidden><a id="export-md" class="entry-button" download>导出 Markdown</a><a id="export-json" class="entry-button" download>导出 JSON</a><button id="continue-record" class="entry-button">继续这次研究</button><button id="rerun-record" class="entry-button">按原范围重新检索</button><button id="delete-record" class="danger">删除记录</button></div><p id="answer"></p><div id="citations" class="citations"></div><div id="recommendations"></div><details class="trace"><summary>查看保存的处理过程</summary><ol id="trace"></ol></details></section>
     <section id="workspace" hidden><div class="result-heading"><h2 id="workspace-title"></h2><span class="tag">入口工作台</span></div><p id="workspace-description"></p><div id="workspace-docs" class="citations"></div></section>
     <section id="welcome" class="welcome"><span class="line-icon">⌁</span><div><h2>答案从你的文档开始</h2><p>检索结果会显示原文片段、文档版本和可用入口。<br>默认使用真实本地检索，不生成模拟 AI 回答。</p></div></section>
+    <section class="history-section"><div class="result-heading"><h2>研究记录</h2><span id="history-count" class="muted compact"></span></div><p class="muted compact">自动保存在本机。打开记录会复核引用是否过期。</p><div id="history-list" class="history-list"></div></section>
     <footer class="main-footer">知径 / 让每个结果都有来处 <a href="/docs" target="_blank" rel="noopener">API 文档 ↗</a></footer>
   </main>
-  <dialog id="document-dialog"><form id="document-form"><div class="dialog-heading"><h2 id="dialog-title">新增文档</h2><button type="button" id="close-dialog" class="icon-button" aria-label="关闭">×</button></div><label for="document-title">标题</label><input id="document-title" required maxlength="120"><label for="document-body">正文</label><textarea id="document-body" rows="10" required maxlength="80000"></textarea><fieldset><legend>关联入口</legend><div id="document-entry-options"></div></fieldset><p id="document-error" class="error" role="alert" hidden></p><div class="dialog-actions"><button type="button" id="delete-document" class="danger" hidden>删除文档</button><button class="primary" id="save-document">保存并更新索引</button></div></form></dialog>
+  <dialog id="document-dialog"><form id="document-form"><div class="dialog-heading"><h2 id="dialog-title">新增文档</h2><button type="button" id="close-dialog" class="icon-button" aria-label="关闭">×</button></div><label for="document-title">标题</label><input id="document-title" required maxlength="120"><label for="document-collection">知识集合</label><select id="document-collection"></select><label for="document-body">正文</label><textarea id="document-body" rows="10" required maxlength="80000"></textarea><fieldset><legend>关联入口</legend><div id="document-entry-options"></div></fieldset><p id="document-error" class="error" role="alert" hidden></p><div class="dialog-actions"><button type="button" id="delete-document" class="danger" hidden>删除文档</button><button class="primary" id="save-document">保存并更新索引</button></div></form></dialog>
+  <dialog id="import-dialog"><form id="import-form"><div class="dialog-heading"><h2>导入资料</h2><button type="button" id="close-import" class="icon-button" aria-label="关闭导入">×</button></div><p class="muted compact">UTF-8 TXT / Markdown；每批最多 20 个、单文件 256 KiB、整批 2 MiB、每份最多 80000 字符。任一文件出错，整批不写入。</p><ul id="import-preview"></ul><label for="import-collection">导入到集合</label><select id="import-collection"></select><p id="import-error" class="error" role="alert" hidden></p><div class="dialog-actions"><button type="button" id="choose-files" class="entry-button">重新选择</button><button id="submit-import" class="primary">导入并建立索引</button></div></form></dialog>
+  <dialog id="collections-dialog"><div class="dialog-heading"><h2>知识集合</h2><button type="button" id="close-collections" class="icon-button" aria-label="关闭集合管理">×</button></div><p class="muted compact">用集合归纳资料；删除集合后，文档会回到“未归档”。</p><form id="collection-form" class="collection-form"><input id="collection-name" maxlength="80" required aria-label="新集合名称" placeholder="例如：学习笔记"><button class="primary">创建集合</button></form><div id="collection-list"></div><p id="collection-error" class="error" role="alert" hidden></p></dialog>
   <dialog id="confirm-dialog"><form method="dialog"><h2>确认操作</h2><p id="confirm-message"></p><div class="dialog-actions"><button value="cancel" class="entry-button">取消</button><button value="confirmed" class="primary" id="confirm-action">确认打开</button></div></form></dialog>
   <script src="/static/app.js" defer></script>
 </body></html>

@@ -5,9 +5,12 @@ import hashlib
 import json
 import re
 import sqlite3
+import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+
+UNCHANGED = object()
 
 
 def terms(text: str) -> list[str]:
@@ -57,7 +60,20 @@ class Store:
                     ON DELETE CASCADE, quote TEXT NOT NULL);
                 CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
                     chunk_id UNINDEXED, document_id UNINDEXED, tokens);
+                CREATE TABLE IF NOT EXISTS collections (
+                    id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS research_records (
+                    id TEXT PRIMARY KEY, created_at TEXT NOT NULL, query TEXT NOT NULL,
+                    mode TEXT NOT NULL, status TEXT NOT NULL, snapshot TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS embedding_vectors (
+                    cache_key TEXT PRIMARY KEY,
+                    chunk_id TEXT NOT NULL REFERENCES chunks(id) ON DELETE CASCADE,
+                    vector TEXT NOT NULL);
             """)
+            columns = {row[1] for row in conn.execute("PRAGMA table_info(documents)")}
+            if "collection_id" not in columns:
+                conn.execute("ALTER TABLE documents ADD COLUMN collection_id TEXT REFERENCES collections(id) ON DELETE SET NULL")
+            conn.execute("INSERT INTO metadata VALUES ('schema_version','2') ON CONFLICT(key) DO UPDATE SET value='2'")
             # Seed once, even when the user subsequently deletes every document.
             if not conn.execute("SELECT 1 FROM metadata WHERE key='seeded'").fetchone():
                 demo = json.loads(Path(__file__).with_name("demo.json").read_text("utf-8"))
@@ -84,7 +100,8 @@ class Store:
             row = conn.execute("SELECT * FROM documents WHERE id=?", (document_id,)).fetchone()
             return self._document(row) if row else None
 
-    def put(self, id: str, title: str, body: str, entry_ids: list[str], expected_version=None):
+    def put(self, id: str, title: str, body: str, entry_ids: list[str], expected_version=None,
+            collection_id=UNCHANGED):
         with self.connection() as conn:
             # Lock before checking the version so another writer cannot pass
             # the same optimistic-lock check before this update commits.
@@ -96,7 +113,11 @@ class Store:
             known = {row[0] for row in conn.execute("SELECT id FROM entries")}
             if not set(entry_ids) <= known:
                 raise PermissionError("文档绑定了白名单外的入口")
+            if collection_id is not UNCHANGED:
+                self._check_collection(conn, collection_id)
             self._put(conn, id, title, body, entry_ids)
+            if collection_id is not UNCHANGED:
+                conn.execute("UPDATE documents SET collection_id=? WHERE id=?", (collection_id, id))
         return self.get(id)
 
     def _put(self, conn, id, title, body, entry_ids):
@@ -105,7 +126,7 @@ class Store:
         digest = hashlib.sha256(body.encode()).hexdigest()
         conn.execute("DELETE FROM search_index WHERE document_id=?", (id,))
         conn.execute("DELETE FROM chunks WHERE document_id=?", (id,))
-        conn.execute("""INSERT INTO documents VALUES (?,?,?,?,?,?,?)
+        conn.execute("""INSERT INTO documents (id,title,body,entry_ids,version,digest,updated_at) VALUES (?,?,?,?,?,?,?)
             ON CONFLICT(id) DO UPDATE SET title=excluded.title,body=excluded.body,
             entry_ids=excluded.entry_ids,version=excluded.version,digest=excluded.digest,
             updated_at=excluded.updated_at""", (id, title, body, json.dumps(sorted(set(entry_ids))),
@@ -150,3 +171,124 @@ class Store:
                 [*chunk_ids, *scope]).fetchall()
             found = {row["citation_id"]: {**dict(row), "entry_ids": json.loads(row["entry_ids"])} for row in rows}
             return [found[chunk_id] for chunk_id in chunk_ids if chunk_id in found]
+
+    @staticmethod
+    def _check_collection(conn, collection_id):
+        if collection_id is not None and not conn.execute(
+                "SELECT 1 FROM collections WHERE id=?", (collection_id,)).fetchone():
+            raise ValueError("知识集合不存在，请刷新后重试")
+
+    def collections(self):
+        with self.connection() as conn:
+            return [dict(row) for row in conn.execute("""SELECT c.*,COUNT(d.id) AS document_count
+                FROM collections c LEFT JOIN documents d ON d.collection_id=c.id
+                GROUP BY c.id ORDER BY c.name,c.id""")]
+
+    def save_collection(self, name, collection_id=None):
+        creating = collection_id is None
+        collection_id = collection_id or uuid.uuid4().hex
+        with self.connection() as conn:
+            try:
+                if creating:
+                    conn.execute("INSERT INTO collections VALUES (?,?,?)", (collection_id, name, datetime.now(timezone.utc).isoformat()))
+                elif not conn.execute("UPDATE collections SET name=? WHERE id=?", (name, collection_id)).rowcount:
+                    raise LookupError("集合不存在")
+            except sqlite3.IntegrityError as exc:
+                raise ValueError("已存在同名集合") from exc
+            row = conn.execute("SELECT * FROM collections WHERE id=?", (collection_id,)).fetchone()
+            count = conn.execute("SELECT COUNT(*) FROM documents WHERE collection_id=?", (collection_id,)).fetchone()[0]
+            return {**dict(row), "document_count": count}
+
+    def delete_collection(self, collection_id):
+        with self.connection() as conn:
+            return conn.execute("DELETE FROM collections WHERE id=?", (collection_id,)).rowcount > 0
+
+    def import_documents(self, items, collection_id=None, entry_ids=()):
+        imported = []
+        with self.connection() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            self._check_collection(conn, collection_id)
+            known = {row[0] for row in conn.execute("SELECT id FROM entries")}
+            if not set(entry_ids) <= known:
+                raise PermissionError("文档绑定了白名单外的入口")
+            for item in items:
+                document_id = uuid.uuid4().hex
+                self._put(conn, document_id, item["filename"], item["body"], list(entry_ids))
+                conn.execute("UPDATE documents SET collection_id=? WHERE id=?", (collection_id, document_id))
+                imported.append({"id": document_id, "title": item["filename"]})
+        return imported
+
+    def save_research(self, result):
+        """Only the server search flow calls this with a completed result or safe failure."""
+        record_id, created_at = uuid.uuid4().hex, datetime.now(timezone.utc).isoformat()
+        snapshot = {key: result[key] for key in (
+            "query", "mode", "status", "answer", "scope_document_ids", "scope_collection_ids",
+            "scope_entry_ids", "citations", "entries", "trace", "model_called", "model_calls", "code", "message",
+            "retrieval", "parent_research_id", "continuation_context")
+            if key in result}
+        with self.connection() as conn:
+            conn.execute("INSERT INTO research_records VALUES (?,?,?,?,?,?)", (
+                record_id, created_at, result["query"], result["mode"], result["status"],
+                json.dumps(snapshot, ensure_ascii=False)))
+        return {"research_id": record_id, "recorded_at": created_at}
+
+    def research_records(self):
+        with self.connection() as conn:
+            return [dict(row) for row in conn.execute("""SELECT id,created_at,query,mode,status
+                FROM research_records ORDER BY created_at DESC,id DESC""")]
+
+    def research(self, record_id):
+        with self.connection() as conn:
+            conn.execute("BEGIN")
+            row = conn.execute("SELECT * FROM research_records WHERE id=?", (record_id,)).fetchone()
+            if not row:
+                return None
+            result = {**json.loads(row["snapshot"]), "research_id": row["id"], "recorded_at": row["created_at"]}
+            stale_count = 0
+            for citation in result.get("citations", []):
+                current = conn.execute("SELECT version,digest,body FROM documents WHERE id=?",
+                                       (citation["document_id"],)).fetchone()
+                reason = ("文档已删除" if current is None else "文档已更新"
+                          if current["version"] != citation["version"] or current["digest"] != citation["digest"]
+                          or citation["quote"] not in current["body"] else None)
+                citation["stale"] = reason is not None
+                citation["stale_reason"] = reason
+                stale_count += int(reason is not None)
+            result["stale_citation_count"] = stale_count
+            result["evidence_status"] = ("stale" if stale_count else "current"
+                                         if result.get("citations") else "none")
+            result["checked_at"] = datetime.now(timezone.utc).isoformat()
+            return result
+
+    def delete_research(self, record_id):
+        with self.connection() as conn:
+            return conn.execute("DELETE FROM research_records WHERE id=?", (record_id,)).rowcount > 0
+
+    def scoped_chunks(self, scope):
+        if not scope:
+            return []
+        with self.connection() as conn:
+            placeholders = ",".join("?" for _ in scope)
+            rows = conn.execute(f"""SELECT c.id AS citation_id,c.document_id,c.quote,
+                d.title,d.version,d.digest,d.entry_ids FROM chunks c JOIN documents d ON d.id=c.document_id
+                WHERE c.document_id IN ({placeholders}) ORDER BY c.id LIMIT 2001""", scope).fetchall()
+            return [{**dict(row), "entry_ids": json.loads(row["entry_ids"])} for row in rows]
+
+    def cached_vectors(self, keys):
+        if not keys:
+            return {}
+        with self.connection() as conn:
+            # Bound SQL variables even when the corpus has many chunks.
+            found = {}
+            for start in range(0, len(keys), 400):
+                batch = keys[start:start + 400]
+                rows = conn.execute(f"SELECT cache_key,vector FROM embedding_vectors WHERE cache_key IN ({','.join('?' for _ in batch)})", batch)
+                found.update({row["cache_key"]: json.loads(row["vector"]) for row in rows})
+            return found
+
+    def cache_vectors(self, values):
+        with self.connection() as conn:
+            for cache_key, chunk_id, digest, vector in values:
+                conn.execute("""INSERT OR REPLACE INTO embedding_vectors(cache_key,chunk_id,vector)
+                    SELECT ?,c.id,? FROM chunks c JOIN documents d ON d.id=c.document_id
+                    WHERE c.id=? AND d.digest=?""", (cache_key, json.dumps(vector), chunk_id, digest))

@@ -1,28 +1,21 @@
-# 知径 · Knowledge Navigator Agent
+# 知径 · Knowledge Navigator v0.2
 
-**一个能跑在本机的个人知识导航项目：限定笔记范围，检索真实原文，校验引用，再推荐可打开的工作入口。**
+把 TXT/Markdown 资料导入本机知识库，按集合限定检索范围，保存带原文引用的研究记录，并从已有研究继续追问。默认使用真实 SQLite FTS5/BM25，无需 API Key；可选真实 embedding 混合召回与有界模型工具循环。
 
-[![Tests](https://github.com/zhyzx35607/knowledge-navigator-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/zhyzx35607/knowledge-navigator-agent/actions/workflows/tests.yml)
+技术栈：Python 3.11+、FastAPI、SQLite、原生 HTML/CSS/JavaScript。新增代码 MIT，来源协议适配文件保留 Mulan PSL v2。
 
-采用 FastAPI、SQLite FTS5 和原生 HTML/CSS/JavaScript。无需公司平台、向量服务或模型密钥。默认模式执行实际 BM25 检索并展示原文；可选接入兼容 Chat Completions 的模型服务，由模型在有限步数内选择搜索、读取片段、提交回答，界面展示真实工具轨迹。
+## 启动
 
-| 模式 | 实际行为 | 边界 |
-|---|---|---|
-| 本地检索（默认） | 一次 FTS5/BM25 搜索，展示原文与关联入口 | 离线可用；没有模型规划或生成答案 |
-| Agent 检索（可选） | 模型决定 `search` / `read` / `final`，可根据搜索结果改写关键词 | 需要模型服务；默认最多 6 步，引用必须来自已读原文 |
-
-## 快速启动（Windows）
-
-需要 Python 3.12。首次安装依赖需要网络，完成后默认本地模式可以离线使用。
+Windows（首次安装需要网络）：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/setup.ps1
 powershell -ExecutionPolicy Bypass -File scripts/start.ps1
 ```
 
-打开 **http://127.0.0.1:8792**，终端按 `Ctrl+C` 停止。若端口冲突，加 `-Port 8793`。首次启动会在 `data/knowledge.sqlite3` 创建 SQLite 数据库，内置 4 份合成个人笔记、3 个本地工作入口。
+打开 http://127.0.0.1:8792，端口冲突可加 `-Port 8794`。首次创建 `data/knowledge.sqlite3` 和 4 份合成笔记；已有 v0.1 数据库自动增加集合、研究记录和向量缓存表，保留文档、版本、索引及历史，不重新播种已清空的库。迁移前可自行复制 SQLite 文件做备份。
 
-macOS/Linux 或手动启动（Python 3.11+）：
+其他系统：
 
 ```bash
 python -m venv .venv
@@ -32,75 +25,111 @@ python -m pip install --no-deps -e .
 python -m uvicorn navigator.main:app --host 127.0.0.1 --port 8792
 ```
 
-## 两分钟演示
+## 三分钟实际操作
 
-1. 点击“每周复盘”，查看命中的“每周复盘.md”原文、版本和处理过程。
-2. 点击“周复盘工作台”，确认后打开实际本地入口，查看关联笔记。
-3. 只勾选“每周复盘.md”，查询 `RAG`：返回未找到，不能跨范围借用其他文档。
-4. 点击左侧 `＋` 创建自己的笔记，关联入口；用独有关键词查询，随后编辑或删除，再查一次，观察索引同步更新。
-5. 选择“Agent 检索”。未配置服务时明确报错；配置后可展开处理过程，检查每次搜索词、读取片段与最终校验。
+1. 左侧“管理”创建“研究方法”集合，选择该集合。
+2. 点“导入 TXT / MD”，选择 `examples/研究方法.md` 和 `examples/验收清单.txt`；也可以拖到左侧导入区域。确认整批文件与目标集合后导入。
+3. 搜索“研究闭环”。查看真实原文、版本、SHA256、动作耗时；研究记录自动保存。
+4. 点“继续这次研究”，输入“有哪些步骤”。本地模式使用上一轮问题补全关键词；Agent 模式会收到有界公开上下文。后端将文档和入口范围与上一轮取交集。
+5. 编辑“研究方法.md”并保存。旧研究仍保留原文，重新打开显示“文档已更新 / 引用已过期”；过期父记录不能继续注入旧证据。
+6. 导出 Markdown 或 JSON；导出会再次复核引用。按原范围重新检索生成新记录，旧记录不会被覆盖。可以单独删除研究记录。
 
-入口白名单当前由内置配置建立，普通文档只能绑定已有入口，不能通过模型生成任意跳转地址。
+![研究续问与引用过期提示](docs/screenshots/v02-research.jpg)
 
-![本地检索与来源展示](docs/screenshots/local-search.jpg)
+## 导入、集合与研究记录
 
-## 可选模型
+- 导入只接受严格 UTF-8（允许 BOM）的 `.txt` / `.md`，每批 1–20 个、单文件 256 KiB、整批 2 MiB、正文最多 80000 字符；HTTP 请求最多 3 MiB。文件名不能包含路径分隔符、盘符或控制字符，且只作为数据库标题，永不写成磁盘路径。
+- 整批先解码和校验，再在一个 SQLite 事务里写文档、分块及 FTS。任一校验或写入失败，整批不落库。同名文件创建独立文档，不覆盖已有内容。
+- 集合支持创建、改名、删除；文档可在编辑器里移动集合。删除集合仅将资料归入“未归档”。集合与单独勾选的文档范围取交集，空范围始终为空。
+- 搜索命中、未命中、模型/向量服务失败都保存服务器实际结果；客户端不能直接伪造研究快照。历史保存 query、实际 scope、引用、回答及公开动作摘要，不保存模型隐藏思维、API Key 或原始上游错误。
+- 读取和导出历史时，在当前数据库快照中比对版本、哈希与原文。历史回答不会自动更新；任何旧引用都逐项标记过期。文档删除不删除研究记录。
 
-复制 `.env.example` 为 `.env`，设置：
+主要接口：`/api/documents/import`、`/api/collections`、`/api/search`、`/api/research`、`/api/research/{id}/export?format=md|json`。启动后的 `/docs` 可查看其余 API；批量导入的 JSON 结构是 `files: [{filename, content_base64}]`，可附 `collection_id`、`entry_ids`。
+
+## 检索路径与真实向量服务
+
+界面分别选择回答方式和召回方式：
+
+| 选择 | 实际行为 |
+|---|---|
+| 本地 + BM25 | FTS5/中文双字词检索，展示原文；不调用外部服务 |
+| 本地 + 混合 | 在原始范围内取 BM25 与真实向量候选，用 RRF 融合；仍只展示证据 |
+| Agent + 任一种召回 | 模型控制 `search → read → final`；只有本轮实际读取的原文可作为引用 |
+
+复制 `.env.example` 为 `.env`，按需填写：
 
 ```dotenv
 MODEL_BASE_URL=http://127.0.0.1:8000/v1
-MODEL_NAME=your-model
+MODEL_NAME=your-chat-model
 MODEL_API_KEY=
 MODEL_TIMEOUT=30
 MODEL_MAX_STEPS=6
+EMBEDDING_BASE_URL=http://127.0.0.1:8000/v1
+EMBEDDING_NAME=your-embedding-model
+EMBEDDING_API_KEY=
+EMBEDDING_TIMEOUT=30
+EMBEDDING_MIN_SIMILARITY=0.5
 ```
 
-`MODEL_BASE_URL` 为服务 base URL，程序追加 `/chat/completions`；支持无密钥的本地模型或使用自己的 API Key。Windows `scripts/start.ps1` 安全读取 `.env`，不会执行文件中的命令。其他系统请在启动前将相同变量导出到环境。不要提交 `.env`。
+Windows 启动脚本只读取白名单变量，不执行 `.env`。手动启动或运行评测时请将所需变量设置到进程环境；Python 命令不自动加载 `.env`。
 
-模型每轮必须返回一个 JSON 动作：
+向量请求实际 POST 到 `EMBEDDING_BASE_URL + /embeddings`，输入 `model` 和 `input` 数组，解析带 `index` / `embedding` 的 `data`。范围外的资料不会送往向量服务。每批最多 16 个片段，单次范围最多 2000 个片段；向量缓存键包含端点/模型配置指纹、片段版本 ID 和正文摘要，编辑或删除文档同时清除旧片段缓存。查询向量每次真实请求。
 
-```json
-{"action":"search","query":"每周复盘"}
-{"action":"read","chunk_ids":["weekly-review:v1:0"]}
-{"action":"final","answer":"根据原文整理的回答","citation_ids":["weekly-review:v1:0"],"entry_ids":["journal"]}
-```
+混合模式取两路各最多 30 个候选，RRF 常数 60，最终最多 6 个片段。向量相似度阈值默认 0.5，可配置；这不是经过真实业务调优的阈值，需要用自己的标注集校准。未配置向量服务时明确标记 `path=bm25` 和 fallback 原因；配置后请求失败则明确报错，不静默伪装成混合成功，也不会产生哈希或随机“语义向量”。未加入 reranker。
 
-上面三行代表三轮独立输出。模型服务只需支持 Chat Completions 文本输出；本项目使用严格 JSON 动作协议，不依赖原生 function calling。`search` 真正查询 SQLite，`read` 再次读取当前原文；模型不能改变请求的文档范围，不能读取未发现片段，不能引用未读取片段。`MODEL_MAX_STEPS` 可设为 3–12，`final` 也占一步。`MODEL_TIMEOUT` 是每次模型请求的秒数上限（大于 0、不超过 120），没有无限重试。
+Agent 模型通过 `/chat/completions` 返回严格 JSON 动作；默认 6 步、最多 12 步，`final` 占一步。动作允许改写搜索词，不能改变范围。无引用答案由服务器替换为固定证据不足提示。工具轨迹保存实际检索路径、缓存命中、调用计数、模型及工具耗时；不保存隐藏思维。
 
-空引用提交会被替换成服务器固定的证据不足提示，并清空入口；不会展示模型自写的无证据答案。超限、格式错误、超时、HTTP 错误、捏造引用或越权入口会明确失败，保留已经执行的动作与结果摘要供检查。轨迹不记录内部思维。用户可主动切回本地模式。
+## 研究续问的边界
 
-只有选择 Agent 模式才会把问题、所选文档 ID、允许入口及实际搜索/读取结果发送给配置的服务。默认的本地模式不调用外部 AI。
+“继续这次研究”会显式带上 `parent_research_id`。后端重新核对父引用，再注入上一轮最多 400 字的问题、1200 字的回答和 3 个各 180 字的引用摘要。缩小范围时清空旧回答，只保留范围内引用；本轮仍必须重新 search/read 才能生成有效引用。历史仅直接读取一层，不递归塞入所有对话。
 
-## 测试与验收
+本地续问是确定性的“当前问题 + 上一轮问题前 180 字”关键词查询；Agent 续问会把公开上下文实际发给模型。这里实现的是用户显式选择的持久研究上下文，不宣称自动长期记忆、用户画像或跨任务自主记忆检索。
+
+## 可复现评测
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/test.ps1
+.\.venv\Scripts\python.exe -m navigator.evaluate --mode all --output evals/results/latest.json
 ```
 
-或 `python -m pip install -r requirements-dev.lock` 后执行 `python -m pytest -q`。当前本地验收 **44 项通过**，覆盖实际 SQLite 检索、文档范围、来源原文、入口越权拒绝、更新/删除索引、版本冲突、多轮改写搜索、伪造/未读片段、最大步数与模型异常。模型测试使用明确的 `httpx.MockTransport` 驱动动作，实际工具仍查询 SQLite；不代表真实外部模型已联网验收。CI 已配置 Windows/Linux × Python 3.11/3.12，远程运行结果应以仓库 Actions 为准。
+评测在临时 SQLite 库中运行生产检索 API，使用 `evals/golden.json` 的 10 份人工合成资料和 20 道题；不会改动个人资料库。15 道有答案题包括近似标题、集合过滤与语义改写；5 道无答案题包括未知词和范围隔离。
 
-## 代码地图
+2026-11-06 本机实际结果见 `evals/results/bm25-v02.json`：
 
-| 文件 | 责任 |
-|---|---|
-| `navigator/store.py` | SQLite、事务更新、分块、中文双字词、FTS5/BM25 |
-| `navigator/protocol.py` | 来源、版本、原文、入口白名单结果校验 |
-| `navigator/agent.py` | 严格动作协议、有限步工具循环、范围约束与轨迹 |
-| `navigator/model.py` | 可选模型适配、超时与失败语义 |
-| `navigator/main.py` | API、生命周期、静态页面和工作台路由 |
-| `navigator/static/` | 检索、范围选择、证据展示、文档管理界面 |
-| `navigator/demo.json` | 新建的合成个人知识库和入口 |
-| `tests/test_api.py` | 本地集成测试与模型协议测试 |
+| 指标 | BM25 基线 |
+|---|---:|
+| Source Hit@6 | 14/15 = 0.9333 |
+| MRR@6 | 0.9333 |
+| Section Recall@6 | 14/15 = 0.9333 |
+| 范围泄漏 | 0 |
+| 无答案拒答 | 5/5 = 1.0 |
+| API 错误 | 0 |
 
-[架构与协议](docs/architecture.md) · [验收记录](docs/verification.md) · [简历与演示材料](docs/resume.md) · 运行后交互式 API 文档 `/docs`
+语义改写题 q15 未命中，保留在结果中。混合候选模式因未配置真实向量服务标为 **skipped**，没有生成其效果指标。配置真实服务后同一命令会单独计算 hybrid 指标，与 BM25 区分。报告包含逐例结果、K/分母、语料哈希、代码 revision、环境、p50/p95 耗时、实际召回路径；延迟仅代表本机串行小语料实验，不是生产性能声明。
 
-## 来源与许可
+## 验证
 
-本项目从已有 RAG 辅助搜索中抽取“范围 → 来源 → 入口白名单 → 确认打开”的通用边界，并独立补齐本地后端、索引、界面和测试。没有携带公司数据、原平台认证、私有依赖或 Git 历史。
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.lock
+.\.venv\Scripts\python.exe -m pytest -q
+node --check navigator/static/app.js
+node --test tests/ui_races.cjs
+```
 
-新增代码使用 MIT；适配的 `navigator/protocol.py` 使用 Mulan PSL v2。来源版本、文件路径和完整许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+DOM 测试需要 Node.js 18+，CI 使用 Node.js 22。
 
-## 当前边界
+本地当前 **71 项 Python 测试通过，4 项 DOM 测试通过**。覆盖旧库迁移、整批导入回滚、集合交集、历史持久化与过期导出、续问隔离、向量协议/缓存/版本/数值稳定、工具越界拒绝和并发编辑冲突。外部模型与向量协议测试使用明确的 `httpx.MockTransport`，不代表已联网测得模型效果。Edge 已实际验收两文件导入、集合检索、保存研究、续问、编辑后过期提示、Markdown 下载；拖放由 DOM 事件测试覆盖。
 
-这是单人本地应用，默认仅监听本机地址，没有多用户鉴权。中文检索使用双字词与关键词排序，尚无语义向量召回；模型引用校验保证来源确实存在，不自动证明答案语义正确。文档支持纯文本/Markdown 内容编辑，暂未接 PDF/Word 解析。没有配置真实模型服务时，不声称完成外部模型验收。
+CI 已配置 Windows/Linux × Python 3.11/3.12，并运行 JS 检查与离线 golden 评测。远程状态以 Actions 为准。当前 TestClient 有一条已有的 Starlette/httpx 弃用警告。
+
+## 代码与边界
+
+- `store.py`：事务、兼容迁移、集合、历史与向量缓存。
+- `retrieval.py`：范围内 BM25、真实 embedding HTTP、稳定余弦、RRF。
+- `agent.py` / `protocol.py`：有界工具循环与引用/入口验证。
+- `importing.py` / `exporting.py`：严格文本导入和带实时过期状态的导出。
+- `evaluate.py` / `evals/golden.json`：可复现评测与逐例结果。
+- `static/`：文件选择/拖放、集合、续问、研究记录与导出。
+
+当前为单人本地应用，无多用户鉴权、PDF/Word 解析、向量数据库服务或生产规模性能验收。引用校验保证来源和版本，不自动证明回答语义正确。没有运行真实外部模型效果评测。
+
+来源、适配边界和许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)；新增代码 MIT，`navigator/protocol.py` 保留 Mulan PSL v2。项目未携带原平台数据、认证、私有依赖或 Git 历史。

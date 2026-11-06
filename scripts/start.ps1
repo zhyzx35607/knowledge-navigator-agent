@@ -8,7 +8,7 @@ if (Test-Path -LiteralPath '.env') {
         if ($Line -match '^\s*([A-Z][A-Z0-9_]*)\s*=(.*)$') {
             $ConfigKey = $Matches[1]
             $ConfigValue = $Matches[2].Trim().Trim('"').Trim("'")
-            if ($ConfigKey -match '^(KNOWLEDGE_DB|MODEL_BASE_URL|MODEL_NAME|MODEL_API_KEY|MODEL_TIMEOUT|MODEL_MAX_STEPS)$') {
+            if ($ConfigKey -match '^(KNOWLEDGE_DB|MODEL_BASE_URL|MODEL_NAME|MODEL_API_KEY|MODEL_TIMEOUT|MODEL_MAX_STEPS|EMBEDDING_BASE_URL|EMBEDDING_NAME|EMBEDDING_API_KEY|EMBEDDING_TIMEOUT|EMBEDDING_MIN_SIMILARITY)$') {
                 [Environment]::SetEnvironmentVariable($ConfigKey, $ConfigValue, 'Process')
             }
         }

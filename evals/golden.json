@@ -1,0 +1,38 @@
+{
+  "version": "2026-11-06-v1",
+  "provenance": "人工编写的合成个人知识语料与20条查询，用于可复现检索回归；不是外部模型效果或真实用户基准。",
+  "documents": [
+    {"id":"review","collection":"生活","title":"每周复盘","body":"每周复盘安排在星期五晚上。先收集本周记录，再核对目标完成情况，最后只选择下一周最重要的三件事。"},
+    {"id":"study","collection":"学习","title":"主动回忆学习法","body":"主动回忆要求先合上教材，用自己的话复述知识，再对照原文纠正遗漏。间隔复习可以安排在一天后、一周后、一个月后。"},
+    {"id":"cards","collection":"学习","title":"知识卡片","body":"每张知识卡片只解释一个概念，写上自己的例子并附上来源。双向链接用于连接相关概念，不应取代原文。"},
+    {"id":"rag","collection":"技术","title":"检索增强生成 RAG","body":"RAG 先检索文档片段，再将证据交给语言模型。回答应显示文档版本和原文引用。没有证据时应拒答，不能编造来源。"},
+    {"id":"fusion","collection":"技术","title":"混合检索","body":"BM25 用关键词检索。向量召回适合语义相近的表达。RRF 使用两路候选的倒数排名进行融合，参数六十用于平滑排名差异。"},
+    {"id":"backup","collection":"技术","title":"备份与恢复","body":"重要资料采用三二一备份：三份副本、两种介质、一份异地。备份完成后需要定期演练恢复，确认文件可以读取。"},
+    {"id":"sleep","collection":"生活","title":"晚间例行安排","body":"晚间例行安排包括整理桌面、列出明日任务，并在固定时间关闭工作通知。本文只讨论个人安排，不提供诊疗建议。"},
+    {"id":"project","collection":"生活","title":"周末项目计划","body":"周末项目先写验收条件，再把目标拆成两小时以内的小任务。完成后保留演示截图和实际测试结果。"},
+    {"id":"handoff","collection":"技术","title":"项目交接","body":"项目交接清单包括启动命令、配置变量名称、数据库迁移步骤和回滚方案。凭据通过独立渠道交付，不能写入公开文档。"},
+    {"id":"review-tech","collection":"技术","title":"代码复盘","body":"代码复盘检查失败测试和异常日志。把可复现的问题转换为回归测试，再验证修复没有改变既有行为。"}
+  ],
+  "cases": [
+    {"id":"q01","query":"每周复盘 星期五","relevant":["review"],"sections":["星期五晚上"]},
+    {"id":"q02","query":"下一周最重要的三件事","relevant":["review"],"sections":["三件事"]},
+    {"id":"q03","query":"主动回忆","relevant":["study"],"sections":["先合上教材"]},
+    {"id":"q04","query":"间隔复习 一周后","relevant":["study"],"sections":["一个月后"]},
+    {"id":"q05","query":"知识卡片 来源","relevant":["cards"],"sections":["只解释一个概念"]},
+    {"id":"q06","query":"双向链接","relevant":["cards"],"sections":["不应取代原文"]},
+    {"id":"q07","query":"RAG 原文引用","relevant":["rag"],"sections":["没有证据时应拒答"]},
+    {"id":"q08","query":"BM25 RRF","relevant":["fusion"],"sections":["倒数排名"]},
+    {"id":"q09","query":"三二一备份","relevant":["backup"],"sections":["一份异地"]},
+    {"id":"q10","query":"恢复 演练","relevant":["backup"],"sections":["确认文件可以读取"]},
+    {"id":"q11","query":"晚间例行安排","relevant":["sleep"],"sections":["关闭工作通知"]},
+    {"id":"q12","query":"周末项目 验收","relevant":["project"],"sections":["两小时以内"]},
+    {"id":"q13","query":"项目交接 启动命令","relevant":["handoff"],"sections":["回滚方案"]},
+    {"id":"q14","query":"复盘","collections":["技术"],"relevant":["review-tech"],"sections":["回归测试"]},
+    {"id":"q15","query":"如何把记住的内容从脑海里提取出来","collections":["学习"],"relevant":["study"],"sections":["用自己的话复述知识"]},
+    {"id":"q16","query":"quasar-telescope-orbit","relevant":[],"sections":[]},
+    {"id":"q17","query":"BM25 RRF","collections":["生活"],"relevant":[],"sections":[]},
+    {"id":"q18","query":"三二一备份","document_ids":["study","cards"],"relevant":[],"sections":[]},
+    {"id":"q19","query":"每周复盘","document_ids":[],"relevant":[],"sections":[]},
+    {"id":"q20","query":"数据库迁移","collections":["学习"],"document_ids":["handoff"],"relevant":[],"sections":[]}
+  ]
+}
