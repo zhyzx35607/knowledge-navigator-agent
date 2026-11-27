@@ -1,5 +1,9 @@
 # 知径 · Knowledge Navigator v0.2
 
+[![Tests](https://github.com/zhyzx35607/knowledge-navigator-agent/actions/workflows/tests.yml/badge.svg)](https://github.com/zhyzx35607/knowledge-navigator-agent/actions/workflows/tests.yml)
+
+> **English Summary**: A local-first personal knowledge agent built with FastAPI and SQLite FTS5/BM25 (with optional OpenAI-compatible embedding hybrid RRF recall and a bounded `search -> read -> final` tool loop). Features atomic transactional TXT/Markdown batch import, collection-scoped retrieval, persistent research snapshots with live staleness/hash verification on export, and explicit single-hop research continuation.
+
 把 TXT/Markdown 资料导入本机知识库，按集合限定检索范围，保存带原文引用的研究记录，并从已有研究继续追问。默认使用真实 SQLite FTS5/BM25，无需 API Key；可选真实 embedding 混合召回与有界模型工具循环。
 
 技术栈：Python 3.11+、FastAPI、SQLite、原生 HTML/CSS/JavaScript。新增代码 MIT，来源协议适配文件保留 Mulan PSL v2。
@@ -133,3 +137,10 @@ CI 已配置 Windows/Linux × Python 3.11/3.12，并运行 JS 检查与离线 go
 当前为单人本地应用，无多用户鉴权、PDF/Word 解析、向量数据库服务或生产规模性能验收。引用校验保证来源和版本，不自动证明回答语义正确。没有运行真实外部模型效果评测。
 
 来源、适配边界和许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)；新增代码 MIT，`navigator/protocol.py` 保留 Mulan PSL v2。项目未携带原平台数据、认证、私有依赖或 Git 历史。
+
+## 相关个人 Agent 项目（Portfolio）
+
+- [Warehouse Modeling Agent](https://github.com/zhyzx35607/warehouse-modeling-agent) — LangGraph 数仓分层建模、SQL 编译校验与本地 CSV 实验室
+- [Knowledge Navigator Agent](https://github.com/zhyzx35607/knowledge-navigator-agent) — 有界搜索/阅读工具、SQLite FTS5 + 混合召回与实时过期引用核验
+- [Report Workbench Agent](https://github.com/zhyzx35607/report-workbench-agent) — 确定性 CSV 统计/图表、多模板批次队列、SSE 进度与可追溯报告导出
+- [TraceForge](https://github.com/zhyzx35607/TraceForge) — 证据驱动的代码故障调查、SHA-256 审批绑定补丁与隔离回归验证工作台
